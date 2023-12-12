@@ -65,8 +65,8 @@ if __name__ == "__main__":
     embedding_dir = Embedding(3, 4)
     nerf_coarse = NeRF()
     nerf_fine = NeRF()
-    load_ckpt(nerf_coarse, '../nerf.ckpt', model_name='nerf_coarse')
-    load_ckpt(nerf_fine, '../nerf.ckpt', model_name='nerf_fine')
+    load_ckpt(nerf_coarse, './nerf.ckpt', model_name='nerf_coarse')
+    load_ckpt(nerf_fine, './nerf.ckpt', model_name='nerf_fine')
     nerf_coarse.cuda().eval()
     nerf_fine.cuda().eval()
 
