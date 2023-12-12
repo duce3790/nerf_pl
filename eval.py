@@ -14,6 +14,9 @@ import metrics
 
 from datasets import dataset_dict
 from datasets.depth_utils import *
+from utils.visualization import *
+
+from matplotlib import pyplot as plt
 
 torch.backends.cudnn.benchmark = True
 
@@ -23,7 +26,7 @@ def get_opts():
                         default='/home/ubuntu/data/nerf_example_data/nerf_synthetic/lego',
                         help='root directory of dataset')
     parser.add_argument('--dataset_name', type=str, default='blender',
-                        choices=['blender', 'llff'],
+                        choices=['blender', 'llff', 'klevr'],
                         help='which dataset to validate')
     parser.add_argument('--scene_name', type=str, default='test',
                         help='scene name, used as output folder name')
@@ -88,19 +91,26 @@ def batched_inference(models, embeddings,
 
 if __name__ == "__main__":
     args = get_opts()
+    print(args)
     w, h = args.img_wh
 
-    kwargs = {'root_dir': args.root_dir,
-              'split': args.split,
-              'img_wh': tuple(args.img_wh)}
+    if args.dataset_name == 'klevr':
+            kwargs = {'root_dir': args.root_dir,
+              'split': args.split,}
+    else:
+        kwargs = {'root_dir': args.root_dir,
+                'split': args.split,
+                'img_wh': tuple(args.img_wh)}
     if args.dataset_name == 'llff':
         kwargs['spheric_poses'] = args.spheric_poses
     dataset = dataset_dict[args.dataset_name](**kwargs)
+    print(dataset.white_back)
+    # exit()
 
     embedding_xyz = Embedding(3, 10)
     embedding_dir = Embedding(3, 4)
-    nerf_coarse = NeRF()
-    nerf_fine = NeRF()
+    nerf_coarse = NeRF(D=12)
+    nerf_fine = NeRF(D=12)
     load_ckpt(nerf_coarse, args.ckpt_path, model_name='nerf_coarse')
     load_ckpt(nerf_fine, args.ckpt_path, model_name='nerf_fine')
     nerf_coarse.cuda().eval()
@@ -121,21 +131,29 @@ if __name__ == "__main__":
                                     args.N_samples, args.N_importance, args.use_disp,
                                     args.chunk,
                                     dataset.white_back)
-
+        
         img_pred = results['rgb_fine'].view(h, w, 3).cpu().numpy()
         
-        if args.save_depth:
-            depth_pred = results['depth_fine'].view(h, w).cpu().numpy()
-            depth_pred = np.nan_to_num(depth_pred)
-            if args.depth_format == 'pfm':
-                save_pfm(os.path.join(dir_name, f'depth_{i:03d}.pfm'), depth_pred)
-            else:
-                with open(f'depth_{i:03d}', 'wb') as f:
-                    f.write(depth_pred.tobytes())
+        depth_pred = results['depth_fine'].view(h, w)
+        # plt.imshow(visualize_depth(depth_pred).permute(1,2,0))
+        # plt.savefig(os.path.join(dir_name, f"depth_{sample['id']:05d}.jpg"))
+        # if args.save_depth:
+        #     depth_pred = results['depth_fine'].view(h, w).cpu().numpy()
+        #     depth_pred = np.nan_to_num(depth_pred)
+        #     if args.depth_format == 'pfm':
+        #         # save_pfm(os.path.join(dir_name, f'depth_{i:03d}.pfm'), depth_pred)
+        #         d = visualize_depth(depth_pred)
+        #         # d = visualize_depth(depth_pred).permute(1,2,0)
+        #         imageio.imwrite(os.path.join(dir_name, f"depth_{sample['id']:05d}.png"), d)
+        #         save_pfm(os.path.join(dir_name, f"depth_{sample['id']:05d}.pfm"), depth_pred)
+        #     else:
+        #         with open(f'depth_{i:03d}', 'wb') as f:
+        #             f.write(depth_pred.tobytes())
 
         img_pred_ = (img_pred*255).astype(np.uint8)
         imgs += [img_pred_]
-        imageio.imwrite(os.path.join(dir_name, f'{i:03d}.png'), img_pred_)
+        imageio.imwrite(os.path.join(dir_name, f"{sample['id']:05d}.png"), img_pred_)
+        # imageio.imwrite(os.path.join(dir_name, f'{i:03d}.png'), img_pred_)
 
         if 'rgbs' in sample:
             rgbs = sample['rgbs']
