@@ -57,7 +57,7 @@ if __name__ == "__main__":
     # print(args)
     w, h = 256, 256
 
-    kwargs = {'root_dir': sys.argv[1], 'split': 'val',}
+    kwargs = {'root_dir': sys.argv[1], 'split': 'test',}
     dataset = dataset_dict['klevr'](**kwargs)
     print(dataset.white_back)
 
